@@ -1,0 +1,25 @@
+1.0: Pulling from paulohenrique64/hello-world-cicd
+72e5368f654a: Pulling fs layer
+f27d0a727049: Pulling fs layer
+4488ec90c233: Pulling fs layer
+a02b47bfb567: Pulling fs layer
+a3a1870d39c8: Pulling fs layer
+72e5368f654a: Download complete
+a02b47bfb567: Download complete
+f27d0a727049: Download complete
+4488ec90c233: Download complete
+4488ec90c233: Pull complete
+f27d0a727049: Pull complete
+a3a1870d39c8: Download complete
+a3a1870d39c8: Pull complete
+72e5368f654a: Pull complete
+a02b47bfb567: Pull complete
+Digest: sha256:73497f9573fdfaa8e246cda62d5321c016262d8a7b9a6ee5d1067ffc61c69feb
+Status: Downloaded newer image for paulohenrique64/hello-world-cicd:1.0
+docker.io/paulohenrique64/hello-world-cicd:1.0
+
+CONTAINER ID   IMAGE                                  COMMAND                  CREATED         STATUS         PORTS                                         NAMES
+65e2a5049cd3   paulohenrique64/hello-world-cicd:1.0   "uvicorn app.main:ap…"   3 seconds ago   Up 2 seconds   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   hello-v1
+
+$ curl http://localhost:8080/hello
+Hello World

@@ -46,14 +46,19 @@ aparecem no arquivo da pipeline.
 
 Ver a pasta [`evidencias/`](evidencias/).
 
+### Configuração
+- Secrets do repositório (somente nomes visíveis): `evidencias/00-secrets.png`
+
 ### Versão 1.0 — Hello World
-- Build local: `evidencias/01-build-local-v1.txt`
-- Execução local + curl: `evidencias/02-run-local-v1.txt`
-- Pipeline v1: `evidencias/03-pipeline-v1.png`
+- Build local: `evidencias/01-build-local-v1.txt` / `.png`
+- Execução local + curl: `evidencias/02-run-local-v1.txt` / `.png`
+- Pipeline disparada por push: `evidencias/03-pipeline-v1-lista.png`
+- Passos da pipeline (build, teste, push): `evidencias/03-pipeline-v1-passos.png`
 - Registry com tag 1.0: `evidencias/04-registry-v1.png`
-- Pull + execução da imagem do registry: `evidencias/05-pull-run-v1.txt`
+- Pull + execução da imagem do registry: `evidencias/05-pull-run-v1.txt` / `.png`
 
 ### Versão 2.0 — Hello World 2
-- Pipeline v2: `evidencias/06-pipeline-v2.png`
+- Pipeline disparada pelo push da v2: `evidencias/06-pipeline-v2-lista.png`
+- Passos da pipeline v2: `evidencias/06-pipeline-v2-passos.png`
 - Registry com tags 1.0 e 2.0: `evidencias/07-registry-v2.png`
-- Pull + execução da imagem do registry: `evidencias/08-pull-run-v2.txt`
+- Pull + execução das imagens 1.0 e 2.0 do registry: `evidencias/08-pull-run-v2.txt` / `.png`
