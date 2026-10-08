@@ -27,7 +27,8 @@ jobs:
         run: docker build -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
 
       - name: Verificar se a imagem foi criada
-        run: docker image inspect "$IMAGE:$VERSION" --format 'Imagem criada: {{.Id}} ({{.Size}} bytes)'
+        run: |
+          docker image inspect "$IMAGE:$VERSION" --format 'Imagem criada: {{.Id}} ({{.Size}} bytes)'
 
       - name: Testar o container (smoke test)
         run: |
