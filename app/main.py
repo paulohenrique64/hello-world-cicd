@@ -6,4 +6,4 @@ app = FastAPI(title="hello-world-cicd")
 
 @app.get("/hello", response_class=PlainTextResponse)
 def hello() -> str:
-    return "Hello World"
+    return "Hello World 2"
