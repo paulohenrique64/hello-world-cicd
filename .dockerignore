@@ -1,0 +1,7 @@
+.git
+.github
+evidencias
+__pycache__
+*.pyc
+*.pdf
+README.md

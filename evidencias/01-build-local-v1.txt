@@ -1,0 +1,48 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 438B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 98B done
+#3 DONE 0.0s
+
+#4 [1/6] FROM docker.io/library/python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f
+#4 resolve docker.io/library/python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 123B done
+#5 DONE 0.0s
+
+#6 [3/6] COPY requirements.txt .
+#6 CACHED
+
+#7 [5/6] COPY app/ ./app/
+#7 CACHED
+
+#8 [2/6] WORKDIR /app
+#8 CACHED
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt
+#9 CACHED
+
+#10 [6/6] RUN useradd --create-home appuser
+#10 CACHED
+
+#11 exporting to image
+#11 exporting layers done
+#11 exporting manifest sha256:6574afa65ef8b44cd0b9d7bc74b577918e44a8b626e1b066e3f8c63dfa851210 done
+#11 exporting config sha256:bb29ea38359914a02232659f482ad048cb4b9f74b3f623746815ceddd56f5571 done
+#11 exporting attestation manifest sha256:2308f605265a6f4512e05616ea57e66924c260266c678a9c18abf1ba77ac2d2f 0.0s done
+#11 exporting manifest list sha256:0dbea9c7478153796e35bdd89ef912ab5e52b2c31a8e7348f5906dd11acc86d6 done
+#11 naming to docker.io/library/hello-world-cicd:1.0 done
+#11 unpacking to docker.io/library/hello-world-cicd:1.0
+#11 unpacking to docker.io/library/hello-world-cicd:1.0 0.1s done
+#11 DONE 0.2s
+IMAGE                  ID             DISK USAGE   CONTENT SIZE   EXTRA
+hello-world-cicd:1.0   0dbea9c74781        199MB         48.2MB        

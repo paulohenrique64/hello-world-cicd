@@ -1,0 +1,53 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "evidencias/**"
+      - "README.md"
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: hello-world-cicd
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Definir versão e nome da imagem
+        run: |
+          echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+          echo "IMAGE=${{ secrets.REGISTRY_USERNAME }}/${IMAGE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Build da imagem Docker
+        run: docker build -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
+
+      - name: Verificar se a imagem foi criada
+        run: docker image inspect "$IMAGE:$VERSION" --format 'Imagem criada: {{.Id}} ({{.Size}} bytes)'
+
+      - name: Testar o container (smoke test)
+        run: |
+          docker run -d --name smoke -p 8080:8080 "$IMAGE:$VERSION"
+          for i in $(seq 1 15); do
+            curl -fs http://localhost:8080/hello && break
+            sleep 1
+          done
+          echo
+          echo "Resposta do endpoint /hello: $(curl -fs http://localhost:8080/hello)"
+          docker rm -f smoke
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Push da imagem para o registry
+        run: |
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"
+          echo "Imagem publicada: $IMAGE:$VERSION"
