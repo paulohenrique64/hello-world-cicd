@@ -1,0 +1,5 @@
+# Usa todas as regras padrão do Gitleaks, sem allowlists que possam esconder segredos.
+title = "hello-world-cicd"
+
+[extend]
+useDefault = true

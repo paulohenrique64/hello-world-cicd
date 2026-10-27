@@ -1,0 +1,310 @@
+name: DevSecOps CI/CD
+
+# Verificações de segurança rodam em todo Pull Request (abertura e atualização) e em push na main.
+# A publicação da imagem só acontece em push na main e depende do sucesso de todas as verificações.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "evidencias/**"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_NAME: hello-world-cicd
+  PYTHON_VERSION: "3.13"
+  GITLEAKS_VERSION: "8.30.1"
+  TRIVY_VERSION: "v0.75.0"
+  # Espelho do banco de vulnerabilidades (evita rate limit do ghcr.io)
+  TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,ghcr.io/aquasecurity/trivy-db
+
+jobs:
+  # ---------------------------------------------------------------- Requisito 1
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout com histórico completo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Instalar Gitleaks (com verificação de checksum)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSLO "$base/$tarball"
+          curl -sSL "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " $tarball\$" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Varredura de segredos em todo o histórico (bloqueante)
+        run: |
+          echo "Commits analisados: $(git rev-list --count HEAD)"
+          gitleaks git . --log-opts="--full-history HEAD" --redact --verbose \
+            --report-format json --report-path gitleaks-report.json
+
+      - name: Publicar relatório do Gitleaks
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore
+
+  # ------------------------------------------------------- Testes (já existentes)
+  tests:
+    name: Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configurar Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Testes unitários com cobertura
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          pytest --cov=app --cov-report=xml --cov-report=term
+
+      - name: Publicar relatório de cobertura
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage.xml
+
+  # ---------------------------------------------------------------- Requisito 2
+  sonarcloud:
+    name: SonarCloud
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout com histórico completo (blame / código novo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Baixar relatório de cobertura
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage
+
+      - name: Definir versão do projeto
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+
+      - name: Análise SAST + Quality Gate (bloqueante)
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectVersion=${{ env.VERSION }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  # ---------------------------------------------------- Requisito 3 (dependências)
+  trivy-deps:
+    name: Trivy (dependências)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Relatório completo (LOW a CRITICAL, não bloqueante)
+        run: |
+          trivy fs --scanners vuln --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 0 \
+            --format table --output trivy-deps-report.txt .
+          trivy fs --scanners vuln --skip-db-update --exit-code 0 \
+            --format sarif --output trivy-deps.sarif .
+          {
+            echo "## Trivy — dependências (relatório completo, não bloqueante)"
+            echo '```'
+            cat trivy-deps-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gate — CRITICAL/HIGH com correção disponível (bloqueante)
+        run: |
+          trivy fs --scanners vuln --skip-db-update \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 .
+
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-deps-report
+          path: |
+            trivy-deps-report.txt
+            trivy-deps.sarif
+          if-no-files-found: ignore
+
+      - name: Enviar SARIF para a aba Security
+        if: always() && hashFiles('trivy-deps.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-deps.sarif
+          category: trivy-dependencias
+
+  # ------------------------------ Build + Requisito 3 (imagem) + Requisito 4 (SBOM)
+  build-scan:
+    name: Build, Trivy (imagem) e SBOM
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Definir versão da imagem
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+
+      - name: Build da imagem Docker
+        run: docker build -t "$IMAGE_NAME:$VERSION" .
+
+      - name: Verificar se a imagem foi criada
+        run: |
+          docker image inspect "$IMAGE_NAME:$VERSION" --format 'Imagem criada: {{.Id}} ({{.Size}} bytes)'
+
+      - name: Testar o container (smoke test)
+        run: |
+          docker run -d --name smoke -p 8080:8080 "$IMAGE_NAME:$VERSION"
+          for i in $(seq 1 15); do
+            curl -fs http://localhost:8080/hello && break
+            sleep 1
+          done
+          echo
+          echo "Resposta do endpoint /hello: $(curl -fs http://localhost:8080/hello)"
+          echo "Resposta do endpoint /health: $(curl -fs http://localhost:8080/health)"
+          curl -fs -X POST http://localhost:8080/tasks -H 'Content-Type: application/json' -d '{"title":"smoke"}'
+          echo
+          echo "Tarefas: $(curl -fs http://localhost:8080/tasks)"
+          docker rm -f smoke
+
+      - name: Instalar Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Relatório completo da imagem (LOW a CRITICAL, não bloqueante)
+        run: |
+          trivy image --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 0 \
+            --format table --output trivy-image-report.txt "$IMAGE_NAME:$VERSION"
+          trivy image --skip-db-update --exit-code 0 \
+            --format sarif --output trivy-image.sarif "$IMAGE_NAME:$VERSION"
+          {
+            echo "## Trivy — imagem $IMAGE_NAME:$VERSION (relatório completo, não bloqueante)"
+            echo '```'
+            cat trivy-image-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gerar SBOM com Syft (SPDX)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          format: spdx-json
+          output-file: sbom-${{ env.VERSION }}.spdx.json
+          upload-artifact: false
+
+      - name: Gerar SBOM com Syft (CycloneDX)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          format: cyclonedx-json
+          output-file: sbom-${{ env.VERSION }}.cyclonedx.json
+          upload-artifact: false
+
+      - name: Publicar SBOM como artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ env.VERSION }}
+          path: sbom-${{ env.VERSION }}.*.json
+
+      - name: Gate — CRITICAL/HIGH com correção disponível (bloqueante)
+        run: |
+          trivy image --skip-db-update \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 "$IMAGE_NAME:$VERSION"
+
+      - name: Publicar relatório da imagem
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-image-report
+          path: |
+            trivy-image-report.txt
+            trivy-image.sarif
+          if-no-files-found: ignore
+
+      - name: Enviar SARIF para a aba Security
+        if: always() && hashFiles('trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-imagem
+
+      - name: Salvar a imagem verificada para publicação
+        run: docker save "$IMAGE_NAME:$VERSION" | gzip > image.tar.gz
+
+      - name: Guardar imagem verificada
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image
+          path: image.tar.gz
+          retention-days: 1
+
+  # -------------------------------------------------- Publicação (já existente)
+  publish:
+    name: Publicar imagem
+    needs: [gitleaks, tests, sonarcloud, trivy-deps, build-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Definir versão e nome da imagem
+        run: |
+          echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+          echo "IMAGE=${{ secrets.REGISTRY_USERNAME }}/${IMAGE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Baixar a mesma imagem que passou pelas verificações
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+
+      - name: Carregar e marcar a imagem
+        run: |
+          docker load < image.tar.gz
+          docker tag "$IMAGE_NAME:$VERSION" "$IMAGE:$VERSION"
+          docker tag "$IMAGE_NAME:$VERSION" "$IMAGE:latest"
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Push da imagem para o registry
+        run: |
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"
+          echo "Imagem publicada: $IMAGE:$VERSION"
