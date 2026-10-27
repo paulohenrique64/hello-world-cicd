@@ -7,8 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Dependências primeiro, para aproveitar o cache de camadas
+# O pip não é usado em runtime e traz bibliotecas embutidas com CVEs (pip/_vendor),
+# por isso é removido depois de instalar as dependências.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip
 
 COPY app/ ./app/
 
