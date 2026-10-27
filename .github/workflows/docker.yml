@@ -18,6 +18,16 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Testes unitários
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          pytest --cov=app
+
       - name: Definir versão e nome da imagem
         run: |
           echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
@@ -39,6 +49,10 @@ jobs:
           done
           echo
           echo "Resposta do endpoint /hello: $(curl -fs http://localhost:8080/hello)"
+          echo "Resposta do endpoint /health: $(curl -fs http://localhost:8080/health)"
+          curl -fs -X POST http://localhost:8080/tasks -H 'Content-Type: application/json' -d '{"title":"smoke"}'
+          echo
+          echo "Tarefas: $(curl -fs http://localhost:8080/tasks)"
           docker rm -f smoke
 
       - name: Login no Docker Hub

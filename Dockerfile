@@ -1,7 +1,8 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DB_PATH=/app/data/app.db
 
 WORKDIR /app
 
@@ -11,8 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 
-# Executa sem root
-RUN useradd --create-home appuser
+# Executa sem root; o diretório do banco SQLite pertence ao usuário da aplicação
+RUN useradd --create-home appuser \
+    && mkdir -p /app/data \
+    && chown appuser:appuser /app/data
 USER appuser
 
 EXPOSE 8080

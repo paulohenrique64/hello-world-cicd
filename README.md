@@ -2,12 +2,27 @@
 
 Exercício prático — Docker, GitHub Actions e Container Registry.
 
-Aplicação Python/FastAPI com o endpoint `GET /hello`, empacotada em Docker e publicada automaticamente
-no Docker Hub por uma pipeline do GitHub Actions a cada push na branch `main`.
+Aplicação Python/FastAPI (API de tarefas com banco SQLite), empacotada em Docker e publicada
+automaticamente no Docker Hub por uma pipeline do GitHub Actions a cada push na branch `main`.
+
+## Endpoints
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/hello` | Texto de boas-vindas |
+| GET | `/health` | Status da aplicação e do banco |
+| GET | `/tasks` | Lista as tarefas |
+| POST | `/tasks` | Cria uma tarefa (`{"title": "...", "description": "..."}`) |
+| GET | `/tasks/{id}` | Busca uma tarefa |
+| PUT | `/tasks/{id}` | Atualiza uma tarefa (`title`, `description`, `done`) |
+| DELETE | `/tasks/{id}` | Remove uma tarefa |
+
+O banco SQLite fica em `DB_PATH` (na imagem: `/app/data/app.db`). Todas as queries são parametrizadas.
 
 | Item | Local |
 |---|---|
-| Código da aplicação | [`app/main.py`](app/main.py) |
+| Código da aplicação | [`app/main.py`](app/main.py), [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
+| Testes | [`tests/test_api.py`](tests/test_api.py) |
 | Dockerfile | [`Dockerfile`](Dockerfile) |
 | Pipeline | [`.github/workflows/docker.yml`](.github/workflows/docker.yml) |
 | Versão da imagem | [`VERSION`](VERSION) (vira a tag da imagem) |
@@ -17,9 +32,16 @@ no Docker Hub por uma pipeline do GitHub Actions a cada push na branch `main`.
 ## Executar localmente
 
 ```bash
-docker build -t hello-world-cicd:1.0 .
-docker run -p 8080:8080 hello-world-cicd:1.0
-curl http://localhost:8080/hello   # Hello World
+# Testes
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/pytest --cov=app
+
+# Container
+docker build -t hello-world-cicd:3.0 .
+docker run -p 8080:8080 hello-world-cicd:3.0
+curl http://localhost:8080/health
+curl -X POST http://localhost:8080/tasks -H 'Content-Type: application/json' -d '{"title":"Estudar"}'
+curl http://localhost:8080/tasks
 ```
 
 ## Executar a imagem publicada
@@ -36,7 +58,7 @@ curl http://localhost:8080/hello   # Hello World 2
 
 ## Pipeline
 
-Disparada por push na `main`: checkout → build da imagem → verificação da imagem → smoke test do
+Disparada por push na `main`: checkout → testes unitários → build da imagem → verificação da imagem → smoke test do
 endpoint → login no Docker Hub → push das tags `<VERSION>` e `latest`.
 
 As credenciais ficam nos Secrets do repositório (`REGISTRY_USERNAME` e `REGISTRY_TOKEN`) e nunca
