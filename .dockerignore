@@ -1,7 +1,12 @@
 .git
 .github
+.venv
 evidencias
+entrega
+tests
+data
 __pycache__
 *.pyc
 *.pdf
+*.zip
 README.md
