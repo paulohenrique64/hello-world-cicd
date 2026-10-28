@@ -117,6 +117,9 @@ Cada scan roda em **dois passos**:
 | Relatório completo | LOW, MEDIUM, HIGH, CRITICAL | `--exit-code 0` (**nunca bloqueia**). Vai para o resumo da execução (*Summary*), para os artifacts `trivy-deps-report` / `trivy-image-report` (tabela + SARIF) e para a aba **Security → Code scanning** |
 | Gate | CRITICAL, HIGH | `--ignore-unfixed --exit-code 1`: **bloqueia** quando existe CVE CRITICAL/HIGH **com correção disponível** |
 
+O envio do SARIF também gera, no PR, o check *Code scanning results / Trivy* e comentários do
+`github-advanced-security` na linha da dependência vulnerável.
+
 Ou seja:
 
 - **CRITICAL/HIGH com correção** → bloqueia o PR e impede a publicação.
@@ -135,9 +138,16 @@ Ou seja:
 
 ### Proteção da branch `main`
 
-Ruleset na `main` exigindo Pull Request e os status checks `Gitleaks`, `Testes`, `SonarCloud`,
-`Trivy (dependências)` e `Build, Trivy (imagem) e SBOM`, sem permissão de bypass, com force push e deleção
-bloqueados. Com isso, um PR com qualquer verificação reprovada **não pode ser mergeado**.
+Ruleset `pipeline-protection` (ativo, aplicado à branch padrão `main`, **lista de bypass vazia** — nem o
+administrador do repositório pode ignorá-lo):
+
+- **Status checks obrigatórios:** `Gitleaks`, `Testes`, `SonarCloud`, `Trivy (dependências)` e
+  `Build, Trivy (imagem) e SBOM`;
+- deleção da branch e force push bloqueados.
+
+Com isso, um PR com qualquer verificação reprovada fica com o botão de merge desabilitado
+("Merging is blocked due to failing merge requirements") e nenhum commit chega à `main` sem passar pelas
+verificações.
 
 ### Outras medidas de segurança
 
@@ -155,8 +165,8 @@ bloqueados. Com isso, um PR com qualquer verificação reprovada **não pode ser
 |---|---|---|---|
 | [#1](https://github.com/paulohenrique64/hello-world-cicd/pull/1) | `pip install` sem travar versões/hashes e sem `--only-binary` no Dockerfile | **SonarCloud**: Quality Gate reprovado (Security Rating C; regras `docker:S8541` e `docker:S8544`) | Lock com hashes + `--only-binary :all: --require-hashes` → Quality Gate passou |
 | [#2](https://github.com/paulohenrique64/hello-world-cicd/pull/2) | `python-multipart==0.0.6` (CVE-2024-24762 e outras 4 HIGH) para a importação via CSV | **Trivy** (dependências e imagem): 5 HIGH com correção | Atualização para `0.0.32` no mesmo PR → todos os checks verdes → merge e publicação da 3.2 |
-| [#3](https://github.com/paulohenrique64/hello-world-cicd/pull/3) | Reintrodução de `python-multipart==0.0.6` com a proteção da `main` ativa | **Trivy** + **merge bloqueado** pela branch protection | PR fechado sem merge (a correção já está na `main`) |
-| [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4) | Chave de API **fictícia** (gerada com `openssl rand`) escrita no código em `app/config.py` | **Gitleaks**: regra `generic-api-key`, segredo mascarado no log, merge bloqueado | Chave movida para variável de ambiente e **commit com o segredo removido do histórico** do branch (`git commit --amend` + force push) → Gitleaks aprovado; PR fechado e branch apagado |
+| [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4) | Reintrodução de `python-multipart==0.0.6` com a proteção da `main` ativa | **Trivy** (dependências e imagem) + **merge bloqueado** pelo ruleset ("Merging is blocked due to failing merge requirements") | PR fechado sem merge (a correção já está na `main`) |
+| [#5](https://github.com/paulohenrique64/hello-world-cicd/pull/5) | Chave de API **fictícia** (gerada com `openssl rand`) escrita no código em `app/config.py` | **Gitleaks**: regra `generic-api-key`, segredo mascarado no log, merge bloqueado | Chave movida para variável de ambiente e **commit com o segredo removido do histórico** do branch (`git commit --amend` + force push) → todos os checks aprovados; PR fechado sem merge |
 
 Em um vazamento real, além de limpar o histórico, a credencial deve ser **revogada e rotacionada**, pois
 pode já ter sido copiada.
@@ -250,12 +260,12 @@ Mapeamento completo por entregável em [`ENTREGA.md`](ENTREGA.md). Arquivos em [
 - `36-main-pos-correcao.png` — execução na `main` após o merge, com publicação
 - `37-registry-v3.2.png` — Docker Hub com a 3.2 corrigida
 
-**Proteção de branch e PR #3 — merge bloqueado**
-- `38-branch-protection-regra.png` — ruleset da `main` (PR obrigatório, sem bypass)
+**Proteção de branch e PR #4 — merge bloqueado**
+- `38-branch-protection-regra.png` — ruleset `pipeline-protection`: ativo, bypass vazio, alvo `main`
 - `39-branch-protection-checks.png` — status checks obrigatórios
-- `40-pr3-merge-bloqueado.png` — PR com CVE: checks reprovados e **merge bloqueado**
+- `40-pr4-merge-bloqueado.png` — PR com CVE: checks do Trivy reprovados e **merge bloqueado**
 
-**PR #4 — Gitleaks bloqueando segredo**
-- `41-pr-gitleaks-bloqueado.png` — check `Gitleaks` reprovado e merge bloqueado
+**PR #5 — Gitleaks bloqueando segredo**
+- `41-pr-gitleaks-bloqueado.png` — check `Gitleaks` reprovado e merge bloqueado (demais checks aprovados)
 - `42-gitleaks-log.png` — log do Gitleaks: regra `generic-api-key`, arquivo, linha, commit, segredo `REDACTED`
-- `43-pr-gitleaks-corrigido.png` — após remover o segredo do histórico, `Gitleaks` aprovado
+- `43-pr-gitleaks-corrigido.png` — após remover o segredo do histórico, todos os checks aprovados e merge liberado

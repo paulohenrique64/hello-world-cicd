@@ -25,6 +25,14 @@ Este documento segue a ordem dos entregáveis do enunciado. Todas as imagens e a
 |---|---|
 | Execuções do pipeline | https://github.com/paulohenrique64/hello-world-cicd/actions |
 | Pull Requests | https://github.com/paulohenrique64/hello-world-cicd/pulls?q=is%3Apr |
+
+| PR | Objetivo | Resultado |
+|---|---|---|
+| [#1](https://github.com/paulohenrique64/hello-world-cicd/pull/1) | Pipeline DevSecOps | SonarCloud reprovou (Dockerfile) → corrigido → merge, publicação da 3.1 |
+| [#2](https://github.com/paulohenrique64/hello-world-cicd/pull/2) | Requisito 5: dependência com CVE | Trivy reprovou → dependência corrigida → merge, publicação da 3.2 |
+| [#3](https://github.com/paulohenrique64/hello-world-cicd/pull/3) | Documentação (README e ENTREGA.md) | Merge |
+| [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4) | Bloqueio do merge com a proteção da `main` ativa | Trivy reprovou, merge bloqueado → fechado sem merge |
+| [#5](https://github.com/paulohenrique64/hello-world-cicd/pull/5) | Gitleaks: segredo fictício no código | Gitleaks reprovou, merge bloqueado → segredo removido do histórico → aprovado → fechado sem merge |
 | SonarCloud | https://sonarcloud.io/project/overview?id=paulohenrique64_hello-world-cicd |
 | Docker Hub | https://hub.docker.com/r/paulohenrique64/hello-world-cicd/tags |
 
@@ -44,7 +52,7 @@ https://github.com/paulohenrique64/hello-world-cicd/actions/runs/40620022197
 | `09`, `10`, `11` | SonarCloud: análise via CI, Quality Gate sobre o código novo, definição de New Code |
 | `12-secrets.png` | Credenciais apenas em Secrets (`REGISTRY_*`, `SONAR_TOKEN`) |
 | `13-gitleaks-historico-local.png` | Gitleaks no histórico completo: nenhum vazamento |
-| `38`, `39` | Proteção da `main` exigindo os checks de segurança |
+| `38`, `39` | Ruleset da `main` (ativo, sem bypass) exigindo os 5 checks de segurança |
 | `27-registry-v3.1.png`, `37-registry-v3.2.png` | Publicação no Docker Hub somente após as verificações |
 
 ---
@@ -64,9 +72,9 @@ Execução reprovada: https://github.com/paulohenrique64/hello-world-cicd/action
 | `31-trivy-cve-relatorio.png` | Trecho do relatório do Trivy: 5 CVEs HIGH com correção disponível |
 | `30-pr-cve-checks-falhando.png` | Checks `Trivy (dependências)` e `Build, Trivy (imagem) e SBOM` reprovados |
 | `32-pr-cve-publicacao-skipped.png` | A publicação não executou — a versão vulnerável **não foi publicada** |
-| `40-pr3-merge-bloqueado.png` | Com a proteção da `main` ativa (PR [#3](https://github.com/paulohenrique64/hello-world-cicd/pull/3)), o PR com a mesma CVE fica com o **merge bloqueado** |
+| `40-pr4-merge-bloqueado.png` | Com a proteção da `main` ativa (PR [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4)), o PR com a mesma CVE fica com o **merge bloqueado**: "Merging is blocked due to failing merge requirements", checks do Trivy marcados como *Required* — execução: https://github.com/paulohenrique64/hello-world-cicd/actions/runs/40625971318 |
 
-Gitleaks bloqueando um segredo — PR [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4), com uma
+Gitleaks bloqueando um segredo — PR [#5](https://github.com/paulohenrique64/hello-world-cicd/pull/5) (execução: https://github.com/paulohenrique64/hello-world-cicd/actions/runs/40627128520), com uma
 chave de API **fictícia** (gerada aleatoriamente, nenhuma credencial real):
 
 | Evidência | O que comprova |
@@ -101,8 +109,8 @@ Execução na `main` após o merge: https://github.com/paulohenrique64/hello-wor
 
 SonarCloud após a correção do PR #1: `20-pr1-checks-verdes.png` e `21-pr1-sonarcloud-comentario.png`.
 
-Gitleaks após a correção do PR #4 (segredo movido para variável de ambiente e removido do histórico):
-`43-pr-gitleaks-corrigido.png`.
+Gitleaks após a correção do PR #5 (segredo movido para variável de ambiente e removido do histórico):
+`43-pr-gitleaks-corrigido.png` — execução: https://github.com/paulohenrique64/hello-world-cicd/actions/runs/40627483647
 
 ---
 
@@ -130,9 +138,9 @@ bloqueio exata**, proteção de branch, demonstrações, execução local e list
 
 | Critério | Onde está |
 |---|---|
-| Gitleaks integrado e bloqueante | Job `Gitleaks` (histórico completo, falha com qualquer segredo, check obrigatório) — falha real e correção no PR #4 — README §1; evidências `13`, `23`, `38`/`39`, `41`–`43` |
+| Gitleaks integrado e bloqueante | Job `Gitleaks` (histórico completo, falha com qualquer segredo, check obrigatório) — falha real e correção no PR #5 — README §1; evidências `13`, `23`, `38`/`39`, `41`–`43` |
 | SonarCloud e Quality Gate | Quality Gate sobre o código novo, `qualitygate.wait=true`; falha real e correção no PR #1 — evidências `09`–`11`, `17`–`21` |
 | Trivy e critérios de bloqueio | Gate CRITICAL/HIGH com correção, relatório LOW/MEDIUM não bloqueante, deps + imagem — evidências `24`, `29`–`31`, `35` |
 | SBOM gerado e disponibilizado | Syft (SPDX + CycloneDX), artifact `sbom-<VERSION>` — evidências `25`, `26`, `sbom-3.1.*.json` |
-| Evidências de bloqueio e correção | PR #2 (falha → correção → sucesso), PR #3 e PR #4 (merge bloqueado), versão vulnerável nunca publicada — evidências `28`–`43` |
+| Evidências de bloqueio e correção | PR #2 (falha → correção → sucesso), PR #4 e PR #5 (merge bloqueado), versão vulnerável nunca publicada — evidências `28`–`43` |
 | Organização e documentação | README, ENTREGA.md, commits pequenos e descritivos, evidências numeradas |
