@@ -7,8 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Dependências primeiro, para aproveitar o cache de camadas
+# Instala só wheels (sem executar setup.py) com versões e hashes travados no requirements.txt.
+# O pip não é usado em runtime e traz bibliotecas embutidas com CVEs (pip/_vendor),
+# por isso é removido depois de instalar as dependências.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt \
+    && pip uninstall -y pip
 
 COPY app/ ./app/
 

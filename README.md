@@ -24,7 +24,8 @@ O banco SQLite fica em `DB_PATH` (na imagem: `/app/data/app.db`). Todas as queri
 | Código da aplicação | [`app/main.py`](app/main.py), [`app/db.py`](app/db.py), [`app/schemas.py`](app/schemas.py) |
 | Testes | [`tests/test_api.py`](tests/test_api.py) |
 | Dockerfile | [`Dockerfile`](Dockerfile) |
-| Pipeline | [`.github/workflows/docker.yml`](.github/workflows/docker.yml) |
+| Pipeline | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| Config. SonarCloud / Gitleaks | [`sonar-project.properties`](sonar-project.properties), [`.gitleaks.toml`](.gitleaks.toml) |
 | Versão da imagem | [`VERSION`](VERSION) (vira a tag da imagem) |
 | Imagem no registry | https://hub.docker.com/r/paulohenrique64/hello-world-cicd/tags |
 | Execuções da pipeline | https://github.com/paulohenrique64/hello-world-cicd/actions |
@@ -56,12 +57,26 @@ docker run -p 8080:8080 paulohenrique64/hello-world-cicd:2.0
 curl http://localhost:8080/hello   # Hello World 2
 ```
 
-## Pipeline
+## Pipeline DevSecOps
 
-Disparada por push na `main`: checkout → testes unitários → build da imagem → verificação da imagem → smoke test do
-endpoint → login no Docker Hub → push das tags `<VERSION>` e `latest`.
+Disparada em todo **Pull Request para a `main`** (abertura e atualização) e em **push na `main`**.
 
-As credenciais ficam nos Secrets do repositório (`REGISTRY_USERNAME` e `REGISTRY_TOKEN`) e nunca
+| Job | Ferramenta | O que verifica | Bloqueia quando |
+|---|---|---|---|
+| Gitleaks | Gitleaks | Segredos (senhas, tokens, chaves) em **todo o histórico** do repositório | Qualquer segredo encontrado |
+| Testes | pytest | Testes unitários + cobertura (`coverage.xml`) | Algum teste falha |
+| SonarCloud | SonarCloud | SAST: vulnerabilidades, bugs, code smells, hotspots, cobertura | Quality Gate (código novo) = **Failed** |
+| Trivy (dependências) | Trivy `fs` | CVEs nas dependências Python (`requirements.txt`) | CVE **CRITICAL/HIGH com correção disponível** |
+| Build, Trivy (imagem) e SBOM | Docker, Trivy `image`, Syft | Build + smoke test, CVEs do SO e pacotes da imagem, geração do SBOM | CVE **CRITICAL/HIGH com correção disponível** |
+| Publicar imagem | Docker Hub | Push das tags `<VERSION>` e `latest` | Só roda em push na `main` **e** se todos os jobs acima passarem |
+
+- LOW e MEDIUM (e CRITICAL/HIGH sem correção) aparecem nos relatórios do Trivy (resumo da execução, artifacts `trivy-*-report` e aba Security), sem bloquear.
+- O SBOM (SPDX e CycloneDX) é publicado como artifact `sbom-<VERSION>`.
+- A imagem publicada é exatamente a mesma que foi escaneada (passada entre jobs via `docker save`/`docker load`).
+- Actions de terceiros fixadas por SHA de commit.
+- Dependências Python travadas com hashes (`requirements.txt`/`requirements-dev.txt` gerados por `pip-compile --generate-hashes` a partir dos `.in`) e instaladas com `--only-binary :all: --require-hashes` (sem execução de `setup.py`). Correção apontada pelo SonarCloud (regras `docker:S8541` e `docker:S8544`) no PR #1.
+
+As credenciais ficam nos Secrets do repositório (`REGISTRY_USERNAME`, `REGISTRY_TOKEN` e `SONAR_TOKEN`) e nunca
 aparecem no arquivo da pipeline.
 
 ## Evidências
