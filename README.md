@@ -156,6 +156,10 @@ bloqueados. Com isso, um PR com qualquer verificação reprovada **não pode ser
 | [#1](https://github.com/paulohenrique64/hello-world-cicd/pull/1) | `pip install` sem travar versões/hashes e sem `--only-binary` no Dockerfile | **SonarCloud**: Quality Gate reprovado (Security Rating C; regras `docker:S8541` e `docker:S8544`) | Lock com hashes + `--only-binary :all: --require-hashes` → Quality Gate passou |
 | [#2](https://github.com/paulohenrique64/hello-world-cicd/pull/2) | `python-multipart==0.0.6` (CVE-2024-24762 e outras 4 HIGH) para a importação via CSV | **Trivy** (dependências e imagem): 5 HIGH com correção | Atualização para `0.0.32` no mesmo PR → todos os checks verdes → merge e publicação da 3.2 |
 | [#3](https://github.com/paulohenrique64/hello-world-cicd/pull/3) | Reintrodução de `python-multipart==0.0.6` com a proteção da `main` ativa | **Trivy** + **merge bloqueado** pela branch protection | PR fechado sem merge (a correção já está na `main`) |
+| [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4) | Chave de API **fictícia** (gerada com `openssl rand`) escrita no código em `app/config.py` | **Gitleaks**: regra `generic-api-key`, segredo mascarado no log, merge bloqueado | Chave movida para variável de ambiente e **commit com o segredo removido do histórico** do branch (`git commit --amend` + force push) → Gitleaks aprovado; PR fechado e branch apagado |
+
+Em um vazamento real, além de limpar o histórico, a credencial deve ser **revogada e rotacionada**, pois
+pode já ter sido copiada.
 
 Também encontrado pelo Trivy antes do PR #1 (scan local): bibliotecas embutidas no `pip` da imagem base
 (`msgpack`, `urllib3`) com HIGH corrigível → `pip` removido da imagem final.
@@ -250,3 +254,8 @@ Mapeamento completo por entregável em [`ENTREGA.md`](ENTREGA.md). Arquivos em [
 - `38-branch-protection-regra.png` — ruleset da `main` (PR obrigatório, sem bypass)
 - `39-branch-protection-checks.png` — status checks obrigatórios
 - `40-pr3-merge-bloqueado.png` — PR com CVE: checks reprovados e **merge bloqueado**
+
+**PR #4 — Gitleaks bloqueando segredo**
+- `41-pr-gitleaks-bloqueado.png` — check `Gitleaks` reprovado e merge bloqueado
+- `42-gitleaks-log.png` — log do Gitleaks: regra `generic-api-key`, arquivo, linha, commit, segredo `REDACTED`
+- `43-pr-gitleaks-corrigido.png` — após remover o segredo do histórico, `Gitleaks` aprovado

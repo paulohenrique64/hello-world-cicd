@@ -66,6 +66,14 @@ Execução reprovada: https://github.com/paulohenrique64/hello-world-cicd/action
 | `32-pr-cve-publicacao-skipped.png` | A publicação não executou — a versão vulnerável **não foi publicada** |
 | `40-pr3-merge-bloqueado.png` | Com a proteção da `main` ativa (PR [#3](https://github.com/paulohenrique64/hello-world-cicd/pull/3)), o PR com a mesma CVE fica com o **merge bloqueado** |
 
+Gitleaks bloqueando um segredo — PR [#4](https://github.com/paulohenrique64/hello-world-cicd/pull/4), com uma
+chave de API **fictícia** (gerada aleatoriamente, nenhuma credencial real):
+
+| Evidência | O que comprova |
+|---|---|
+| `41-pr-gitleaks-bloqueado.png` | Check `Gitleaks` reprovado e merge bloqueado |
+| `42-gitleaks-log.png` | Regra `generic-api-key`, arquivo `app/config.py`, linha 4, commit, segredo `REDACTED` |
+
 Gate adicional demonstrado no PR [#1](https://github.com/paulohenrique64/hello-world-cicd/pull/1) (SonarCloud):
 
 | Evidência | O que comprova |
@@ -93,6 +101,9 @@ Execução na `main` após o merge: https://github.com/paulohenrique64/hello-wor
 
 SonarCloud após a correção do PR #1: `20-pr1-checks-verdes.png` e `21-pr1-sonarcloud-comentario.png`.
 
+Gitleaks após a correção do PR #4 (segredo movido para variável de ambiente e removido do histórico):
+`43-pr-gitleaks-corrigido.png`.
+
 ---
 
 ## 5. Arquivo SBOM publicado como artifact do GitHub Actions
@@ -119,9 +130,9 @@ bloqueio exata**, proteção de branch, demonstrações, execução local e list
 
 | Critério | Onde está |
 |---|---|
-| Gitleaks integrado e bloqueante | Job `Gitleaks` (histórico completo, falha com qualquer segredo, check obrigatório) — README §1; evidências `13`, `23`, `38`/`39` |
+| Gitleaks integrado e bloqueante | Job `Gitleaks` (histórico completo, falha com qualquer segredo, check obrigatório) — falha real e correção no PR #4 — README §1; evidências `13`, `23`, `38`/`39`, `41`–`43` |
 | SonarCloud e Quality Gate | Quality Gate sobre o código novo, `qualitygate.wait=true`; falha real e correção no PR #1 — evidências `09`–`11`, `17`–`21` |
 | Trivy e critérios de bloqueio | Gate CRITICAL/HIGH com correção, relatório LOW/MEDIUM não bloqueante, deps + imagem — evidências `24`, `29`–`31`, `35` |
 | SBOM gerado e disponibilizado | Syft (SPDX + CycloneDX), artifact `sbom-<VERSION>` — evidências `25`, `26`, `sbom-3.1.*.json` |
-| Evidências de bloqueio e correção | PR #2 (falha → correção → sucesso), PR #3 (merge bloqueado), versão vulnerável nunca publicada — evidências `28`–`40` |
+| Evidências de bloqueio e correção | PR #2 (falha → correção → sucesso), PR #3 e PR #4 (merge bloqueado), versão vulnerável nunca publicada — evidências `28`–`43` |
 | Organização e documentação | README, ENTREGA.md, commits pequenos e descritivos, evidências numeradas |
