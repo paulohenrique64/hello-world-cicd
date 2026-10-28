@@ -1,7 +1,7 @@
 # Trabalho Prático — Pipeline DevSecOps com GitHub Actions
 
-**Aluno:** Paulo Henrique
-**Disciplina:** DevOps — UFLA / DCC
+**Aluno:** Paulo Henrique Ribeiro Alves
+**Disciplina:** GCC270 Devops na Prática — UFLA / DCC
 **Aplicação:** API de tarefas em Python/FastAPI + SQLite, imagem Docker publicada no Docker Hub
 
 Este documento segue a ordem dos entregáveis do enunciado. Todas as imagens e arquivos citados estão em
