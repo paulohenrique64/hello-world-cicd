@@ -1,6 +1,8 @@
+import csv
+import io
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import FastAPI, HTTPException, Response, UploadFile, status
 from fastapi.responses import PlainTextResponse
 
 from app import db
@@ -34,6 +36,20 @@ def list_tasks() -> list[dict]:
 @app.post("/tasks", response_model=Task, status_code=status.HTTP_201_CREATED)
 def create_task(task: TaskCreate) -> dict:
     return db.create_task(task.title, task.description)
+
+
+@app.post("/tasks/import", response_model=list[Task], status_code=status.HTTP_201_CREATED)
+async def import_tasks(file: UploadFile) -> list[dict]:
+    """Importa tarefas de um CSV com cabeçalho `title,description`."""
+    try:
+        content = (await file.read()).decode("utf-8")
+        rows = list(csv.DictReader(io.StringIO(content)))
+        tasks = [TaskCreate(title=r.get("title") or "", description=r.get("description") or "") for r in rows]
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="CSV inválido") from exc
+    if not tasks:
+        raise HTTPException(status_code=400, detail="CSV sem tarefas")
+    return [db.create_task(t.title, t.description) for t in tasks]
 
 
 @app.get("/tasks/{task_id}", response_model=Task)
