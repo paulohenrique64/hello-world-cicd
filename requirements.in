@@ -2,3 +2,5 @@
 #   pip-compile --generate-hashes --allow-unsafe requirements.in
 fastapi==0.162.0
 uvicorn==0.54.0
+# Upload de arquivos (multipart/form-data) para a importação de tarefas via CSV
+python-multipart==0.0.32

@@ -69,3 +69,20 @@ def test_task_not_found(client, method, body):
 def test_create_task_invalid(client):
     assert client.post("/tasks", json={"title": ""}).status_code == 422
     assert client.post("/tasks", json={}).status_code == 422
+
+
+def test_import_tasks_csv(client):
+    csv_content = "title,description\nTarefa 1,primeira\nTarefa 2,\n"
+    r = client.post("/tasks/import", files={"file": ("tarefas.csv", csv_content, "text/csv")})
+    assert r.status_code == 201
+    assert [t["title"] for t in r.json()] == ["Tarefa 1", "Tarefa 2"]
+    assert len(client.get("/tasks").json()) == 2
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"title,description\n", b"title,description\n,sem titulo\n", b"\xff\xfe\x00"],
+)
+def test_import_tasks_csv_invalid(client, content):
+    r = client.post("/tasks/import", files={"file": ("tarefas.csv", content, "text/csv")})
+    assert r.status_code == 400

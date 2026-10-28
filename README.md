@@ -13,6 +13,7 @@ automaticamente no Docker Hub por uma pipeline do GitHub Actions a cada push na 
 | GET | `/health` | Status da aplicação e do banco |
 | GET | `/tasks` | Lista as tarefas |
 | POST | `/tasks` | Cria uma tarefa (`{"title": "...", "description": "..."}`) |
+| POST | `/tasks/import` | Importa tarefas de um arquivo CSV (`title,description`) via upload |
 | GET | `/tasks/{id}` | Busca uma tarefa |
 | PUT | `/tasks/{id}` | Atualiza uma tarefa (`title`, `description`, `done`) |
 | DELETE | `/tasks/{id}` | Remove uma tarefa |
