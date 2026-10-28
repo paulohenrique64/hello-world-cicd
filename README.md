@@ -74,6 +74,7 @@ Disparada em todo **Pull Request para a `main`** (abertura e atualização) e em
 - O SBOM (SPDX e CycloneDX) é publicado como artifact `sbom-<VERSION>`.
 - A imagem publicada é exatamente a mesma que foi escaneada (passada entre jobs via `docker save`/`docker load`).
 - Actions de terceiros fixadas por SHA de commit.
+- Dependências Python travadas com hashes (`requirements.txt`/`requirements-dev.txt` gerados por `pip-compile --generate-hashes` a partir dos `.in`) e instaladas com `--only-binary :all: --require-hashes` (sem execução de `setup.py`). Correção apontada pelo SonarCloud (regras `docker:S8541` e `docker:S8544`) no PR #1.
 
 As credenciais ficam nos Secrets do repositório (`REGISTRY_USERNAME`, `REGISTRY_TOKEN` e `SONAR_TOKEN`) e nunca
 aparecem no arquivo da pipeline.

@@ -76,7 +76,7 @@ jobs:
 
       - name: Testes unitários com cobertura
         run: |
-          pip install -r requirements.txt -r requirements-dev.txt
+          pip install --only-binary :all: --require-hashes -r requirements.txt -r requirements-dev.txt
           pytest --cov=app --cov-report=xml --cov-report=term
 
       - name: Publicar relatório de cobertura
